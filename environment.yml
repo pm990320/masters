@@ -1,0 +1,20 @@
+name: masters
+dependencies:
+  - numpy
+  - pandas
+  - matplotlib
+  - seaborn
+  - jupyter
+  - statsmodels
+  - scipy
+  - click
+  - keras
+  - tensorflow
+  - pygpu
+  - mkl
+  - mkl-service
+  - scikit-learn
+  - nose
+  - pip
+  - pip:
+      - black

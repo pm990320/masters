@@ -1,0 +1,362 @@
+\documentclass{mproj}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{array,etoolbox}
+\preto\tabular{\setcounter{magicrownumbers}{0}}
+\newcounter{magicrownumbers}
+\newcommand\rownumber{\stepcounter{magicrownumbers}\arabic{magicrownumbers}}
+\setcounter{secnumdepth}{4}
+\usepackage{longtable}
+\usepackage{url}
+\usepackage[round]{natbib}
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{Anomaly detection applied to large-scale multivariate time-series business data}
+\author{Patrick Menlove - 2250066M}
+\date{\today}
+\maketitle
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\tableofcontents
+\newpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}
+\label{intro}
+
+\textit{This research project is being conducted in partnership with Skyscanner and concerns anomaly detection on some of Skyscanner's key business datasets.}
+
+Internet economoy companies like Skyscanner invest heavily in the gathering of events data, with it driving the production and analysis of Key Performance Indicators (KPIs). KPIs are ``financial and non financial indicators that organizations use in order to estimate and fortify how successful they are'' \citep{kpis}, therefore, there is an interest in making sure that the data that is collected is of a high quality and can be trusted in order to produce accurate KPIs to make business decisions with. 
+
+However, there have been several incidents in Skyscanner where data has been produced that was erroneous; due to programming errors, outages or extreme circumstances. In many cases, small or low-to-medium-impact anomalies have gone un-noticed for several days or weeks, due to standard monitoring systems not being able to identify them or not being set up to monitor the specific metric(s) concerned.
+
+This lack of coverage of the current alerting systems has prompted the desire for an anomaly detection system to identify these issues sooner and provide more confidence in the quality and trustworthiness of the recorded data.
+
+The problem, however, is that of unsupervised or ``semi-supervised'' \citep{comparativeUnsupervisedEvaluation} anomaly detection, which requires identifying erroneous data or ``anomalies'' without necessarily knowing what the anomalies are or being able to train on a labelled dataset of anomalies. Skyscanner has in past considered third-party solutions to this problem, but these have not outperformed simple mathematical models, whose overall performance was not positive enough to be considered a viable option.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Statement of Research Problem}
+
+The primary aim of this research is to determine if it is feasible to build an anomaly detection model for the Skyscanner datasets which performs satisfactorily and if anomaly detection could be applied, in practice, within Skyscanner.
+
+Initially, the research will focus on the ``redirects'' data, which is the biggest and richest dataset the company have. It holds (non-personally-identifiable) information about users redirecting to partner websites. Each data point in redirects has many dimensions, and the events can be integrated for a given timestep to produce a multivariate time-series.
+
+The research will aim to identify anomalies in this multivariate time-series, using a semi-supervised learning approach \citep{comparativeUnsupervisedEvaluation}. This will involve training a model on only data considered to be nominal, and comparing the model's predictions versus the labelled anomalies.
+
+The expected contributions for this research is, first and foremost, a prototype anomaly detection model showing it would be feasible to implement anomaly detection in Skyscanner, and potentially recommendations on how to build such a system and deploy it to production.
+
+% off-topic, but potentially useful:
+%Perhaps the biggest challenge of the project will be in labelling anomalies as such. Whilst there are several recorded data quality incidents, 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Background / Literature Survey}
+\subsection{Anomaly Detection}
+
+\subsubsection{What are anomalies?}
+
+\cite{deepLearningSurvey} state in their survey that anomalies are also referred to as abnormalities, deviants or outliers. They also make the distinction between ``anomaly detection'' and ``novelty detection'' which involves detecting novel or unobserved patterns in the data. Novelties are not necessarily anomalous, but may be if their ``novelty score'' is over a given decision threshold.
+\cite{comparativeUnsupervisedEvaluation} reference Grubbs (1969) as being one of the first definitions of an outlier - ``an outlying observation, or outlier, is one that appears to deviate markedly from other members of the sample in which it occurs''.
+
+\cite{deepLearningSurvey} also break anomalies down into three different types:
+\begin{enumerate}
+	\item Point Anomalies - ``an irregularity or deviation that happens randomly and may have no particular interpretation''
+	\item Contextual Anomalies - data that could be considered anomalous in some specific context
+	\item Collective/Group Anomalies - each of the individual data points in a group appear to be normal in isolation, but when considered as a group, they are anomalous
+\end{enumerate}
+
+The survey by \cite{deepLearningSurvey} is thorough and comprehensive, covering anomaly detection applied to various areas, such as intrusion detection, fraud detection, medical anomaly detection, Internet-of-Things (IoT) big data, log-file analysis and, most importantly, time-series anomaly detection. However, being a survey it presents no empirical evidence of its own, and so relies upon the findings of previous works.
+
+An alternative view of anomalies is given by \cite{comparativeUnsupervisedEvaluation}, who categorise anomalies into ``global'' and ``local'' anomalies. Global anomalies are those which can be identified as anomalous as they are very different from the dense areas of the dataset with respect to their features.
+Local anomalies only appear anomalous when they are compared with their close-by neighbourhood. These are analogous to contextual or collective anomalies in \cite{deepLearningSurvey}.
+
+\cite{comparativeUnsupervisedEvaluation} also differentiate between ``point anomaly detection'' and ``collective anomaly detection'' tasks. Their survey focuses on point anomaly detection as most unsupervised algorithms are better suited to this task, and their survey focuses on unsupervised anomaly detection specifically. \cite{comparativeUnsupervisedEvaluation}'s study acknowledges sequential and time-series applications of
+anomaly detection, however it is explicitly stated that this is not covered by their survey, limiting its relevance to this problem specifically. Their categorisation of anomalies and anomaly detection setups is, however, relevant to the background.
+
+There is consensus that there are very obvious (point/global) anomalies that can be detected easily, and there are more subtle (contextual/group/local/collective) anomalies that require more advanced techniques to identify correctly.
+
+In relation to autoencoders, \cite{DAGMM} state that anomalies differ from normal samples in two aspects: (1) anomalies can be significantly deviated in the reduced dimensions where their features are correlated in a different way; and (2) anomalies are harder to reconstruct, compared with normal samples. This forms the basic intuition of reconstruction-based methods of anomaly detection, where the reconstruction error from an autoencoder is used as an anomaly score.
+
+\subsubsection{Semi-supervised anomaly detection}
+
+\cite{outlierAnalysisBook} discusses anomaly labels, stating that they may be available to supervise the anomaly detection process, and if they are that the problem reduces to a ``special case of rare-class detection''. However, when these labels are not available, supervised approaches cannot be used and instead semi-supervised or unsupervised approaches must be used.
+
+\cite{comparativeUnsupervisedEvaluation} define semi-supervised anomaly detection as anomaly detection based on training data where the training data consists of only normal data without anomalies. The normal class of data is learned and anomalies can be detected by comparing the deviation from the learned normal model.
+
+\cite{deepLearningSurvey} observe that the labels of normal instances are far easier to obtain than anomalies, as a result, semi-supervised techniques are more widely adopted than supervised techniques.
+In supervised anomaly detection, the training data would likely consist of normal and anomalous classes of data, with a significant class imbalance, which can reduce the suitability of many classification algorithms to the problem \citep{comparativeUnsupervisedEvaluation}.
+
+\cite{deepLearningSurvey} mention several semi-supervised approaches in their survey, such as One-Class Support Vector Machines (OC-SVM) and variations, as well as One-Class Neural Networks (OC-NN). OC-SVM is used as a benchmark in several other studies referenced in this literature review.
+
+\subsubsection{Challenges of time-series anomaly detection}
+
+\cite{deepMultivariateNetwork} explain that one of the reasons that traditional anomaly detection algorithms do not perform well on time-series datasets is due to the temporal dependency between the data points at each time-step. \cite{deepMultivariateNetwork} also state that distance/clustering, classification and density estimation methods may not perform as well since they cannot capture the temporal dependencies across different time steps. \cite{outlierAnalysisBook} discusses the same issue, instead calling the term ``temporal continuity'', in which the assumption is made that abrupt changes in time series are caused by abnormal processes. This may hinder the detection of anomalous activities which do not result in large, abrupt changes, but are slower trend (group) anomalies.
+
+Another major challenge in time-series anomaly detection is that for most real-world datasets, there is not an easy way to produce labels and to do so would be impractical. \cite{MicrosoftTimeSeries} faced this issue in building Microsoft's anomaly detection system, and forced the solution to adopt an unsupervised (but, upon further inspection, fitting the definition of semi-supervised) approach.
+
+A challenge in selecting which approach to use in time-series anomaly detection is that it is unclear if capturing the correlations between multiple time-series is significant in anomaly detection performance. \cite{outlierAnalysisBook} states that in the event that multiple time-series are available, cross-correlations may be leveraged, although they typically play a secondary role to the analysis of each individual series. \cite{deepMultivariateNetwork} instead view the correlations between different pairs of time-series as ``critical to characterize the system status''.
+
+\subsection{Models}
+\subsubsection{Long Short Term Memory (LSTM)}
+
+Anomaly detection techniques involving LSTM deep neural networks are becoming popular in the field.
+
+LSTM networks are an improvement on Recurrent Neural Networks (RNN) that function using multiplicative gates that enforce constant error flow through the internal states of special time units called ``memory cells'' \citep{lstmTimeSeriesAnomalyDetection}. This allows them to learn long-term correlations in data and model complex multivariate sequences.
+
+\cite{lstmEncoderDecorder} present an ``LSTM Encoder-Decorder'' (autoencoder) model for detecting anomalies in sensor data from machines, engines, vehicles etc. It is an example of an application of modern anomaly detection to a more traditional, established application of anomaly detection (mechanical engineering). The article states that unmonitored environmental conditions or load may lead to inherently unpredictable time-series. Detecting anomalies in such scenarios becomes challenging using standard approaches based on mathematical models that rely on stationarity, or prediction models that utilise prediction errors to detect anomalies. This motivates the use of a more advanced model like an LSTM autoencoder.
+
+The model presented in \cite{lstmEncoderDecorder} consists of two neural networks, an Encoder and Decoder, which are chained together to form an autoencoder that is trained to reconstruct instances of normal time-series. As such, this can be considered a semi-supervised technique. \cite{lstmEncoderDecorder} explicitly mention that this is useful in scenarios when anomalous data is not available or is sparse. This is the case in their application as ``the relevant information pertaining to whether a machine is laden or unladen may not be available''. This is similar to the problem the research intends to solve wherein the anomalies are largely unknown and labels for the anomalies are not immediately available.
+
+The work by \cite{lstmEncoderDecorder} is based on previous work by some of the same authors. \cite{lstmTimeSeriesAnomalyDetection} introduce LSTM neural networks to time-series anomaly detection, but rather than using them as an autoencoder, it uses a ``stacked LSTM based prediction model'', and then uses prediction errors on a training set to build a probability distribution of errors, which is then used to output a probability representing the anomaly score for a given time-step, and combined with a decision threshold can output binary anomaly labels. \cite{lstmTimeSeriesAnomalyDetection} also mention that by giving the network features that are ``control variables'' (features describing the settings chosen on manual operator controls) the network learned normal usage patterns, and was able to recognise anomalous control input as well as anomalous outcomes. This is applicable to the Skyscanner datasets as configurations for various partners and areas of the business change frequently, so the model may want to learn the typical configuration changes that take place.
+
+Malhotra et al appear to be the pioneers of LSTM application to time-series anomaly detection, and their work is comprehensive and clearly shows the results and value of their research.
+
+However, in the ADSaS system, \cite{ADSaS} point out several criticisms of LSTM models. The ADSaS system is designed to be real-time and is memory constrained to work on IoT devices, therefore the large training time and memory complexity of a deep learning model like LSTM is listed as a disadvantage when compared to conventional time-series forecasting methods. They also observe a better overall performance in the ADSaS system based on SARIMA and STL (discussed in Section \ref{subsubsection:temporalprediction}). However, the main critique of this finding is that the evaluation of the algorithm was conducted on univariate time-series, and it is acknowledged in the conclusion that future work is required to apply the algorithm to multivariate time series, whereas it is known that LSTM performs well on multivariate data. \cite{ADSaS} also recognise that LSTM had the lowest prediction error compared to other algorithms - due to the fact that they adjust quickly to the norm after an abrupt change in pattern.
+
+\subsubsection{Convolutional Neural Networks (CNN)}
+
+Convolutional Neural Networks (CNNs) are a popular type of artificial neural network used in various machine learning applications such as image processing and \textit{saliency detection} \citep{MicrosoftTimeSeries}.
+
+\cite{deepMultivariateNetwork} and \cite{MicrosoftTimeSeries} are examples of works where CNNs are applied to time-series anomaly detection. Both works have similarities and differences in their approach.
+
+Both works do not apply Convolutional Neural Netowrks directly to the input data - they instead transform the data into a spatially-significant representation.
+In the MSCRED framework described by \cite{deepMultivariateNetwork}, the multivariate time-seires are collated into ``system signature matrices'' by computing the inner product of two time-seires, for every pair of time-series. This allows for 2-dimensional convolution operations to be applied to these matrices and makes the model more robust to noise. The signature matrices allow the correlations between different pairs of time-series to be captured. \cite{deepMultivariateNetwork} reference previous studies stating these are critical to characterize system status.
+
+In \cite{MicrosoftTimeSeries}, the \textit{Spectral Residual} transform, a simple yet powerful approach based on \textit{Fast Fourrier Transform (FFT)} \citep{MicrosoftTimeSeries}, is applied to the input data to produce a ``saliency map''. This saliency map is then given as input to 1-dimensional convolutional layers of a CNN. \cite{MicrosoftTimeSeries} state that this is because of the lack of labelled data - by transforming the data into a saliency map, the CNN can be trained on saliency maps, which is a much more constrained domain and yield better results when the labels are lacking.
+
+Both \cite{deepMultivariateNetwork} and \cite{MicrosoftTimeSeries} also use a combination of real and synthetic data for training. 
+\cite{MicrosoftTimeSeries} use real production time-series augmented with synthetic anomalies as training data. This is done because of the problem of lack of labelled data mentioned as the main challenge in their paper. By utilising production data as the basis, they aid their model to learn ``normal'' behaviours.
+\cite{deepMultivariateNetwork} evaluate their model on both synthetic data and a real-world power plant dataset. Their synthetic data is completely synthetic, generated based on a sinusoidal pattern with noise.
+
+The works differ in the case of their expected output - \cite{MicrosoftTimeSeries} only wish to be able to identify if a given window of points is anomalous, however \cite{deepMultivariateNetwork} concern themselves also with \textit{anomaly diagnosis} (see Section \ref{subsubsection:anomaly-scoring}), pointing out which time-series are to blame for the anomaly and the precise point at which the anomaly occurs.
+
+There is generally consensus that convolutional neural networks require some transformation of the input data, such that convolution operations are effective on the representation.
+
+\subsubsection{Temporal prediction methods}
+\label{subsubsection:temporalprediction}
+
+Temporal prediction methods operate on the intuition of detecting deviation-based outliers of specific time-instants with the use of regression-based forecasting models - outliers are declared on the basis of deviations from expected (or forecasted) values \citep{outlierAnalysisBook}.
+
+Temporal prediction methods rely on the principle of \textit{temporal continuity}, which assumes that patterns in the data are not expected to change abruptly, unless there are abnormal processes at work \citep{outlierAnalysisBook}.
+
+\cite{outlierAnalysisBook} states that the regression models used in temporal methods can utilise correlations both across time (referring to temporal continuity) or across series, as many applications output multivariate time series that are often closely correlated with one another.
+
+Conventional time-seires analysis methods often do not perform well in anomaly detection, or find anomalies in limited conditions \citep{ADSaS}. For example, SARIMA and STL, are used only for stationary and periodic time-series respectively \citep{ADSaS}, but in the ADSaS system \citep{ADSaS}, combining STL and SARIMA is shown to detect anomalies with high accuracy for data that is even noisy and non-periodic.
+
+ARIMA (Auto-Regressive Integrated Moving Average) models generalise the simplest time-series forecasting models. Autoregressive (AR) models predict the next point in a time-series based on a weighted combination of a given number of previous terms in the time-series. Moving Average (MA) models predict the next point based on a given number of previous \textit{white noise} terms.
+
+$$ AR(p): X_t = \sum_{i=1}^{p} a_i \cdot X_{t-i} + c + \epsilon_t $$ 
+\citep{outlierAnalysisBook}
+
+$$ MA(q): X_t = \sum_{i=1}^{q} b_i \cdot \epsilon_{t-i} + \mu + \epsilon_t $$ 
+\citep{outlierAnalysisBook}
+
+$$ ARMA(p, q): X_t = \sum_{i=1}^{p} a_i \cdot X_{t-i} + \sum_{i=1}^{q} b_i \cdot \epsilon_{t-i} + c + \epsilon_t $$ 
+\citep{outlierAnalysisBook}
+
+The ARMA model can be enhanced to capture persistent trends with the ARIMA model (Auto Regressive Integrated Moving Average), which works better for such \textit{non-stationary} time series \citep{outlierAnalysisBook}.
+
+STL is a versatile and robust method for time-series decomposition \citep{ADSaS}. It is an algorithm developed to decompose a time-series into three components. Namely, the trend, seasonality and residuals. The trend shows a persisting direction in the data, seasonality shows seasonal factors and residuals show the noise of the time-series \citep{ADSaS}.
+
+\cite{outlierAnalysisBook} and \cite{ADSaS} both are high quality works that give insight into temporal prediction methods. \cite{outlierAnalysisBook} is a textbook covering the fundamentals of time-series prediction methods applied to outlier analysis and \cite{ADSaS} is a research paper combining multiple time-series prediction methods to have better performance than many state-of-the-art deep learning approaches, suggesting that it is worth considering purely statistical time-series analysis models as a viable option for anomaly detection.
+
+\subsubsection{Density Estimation}
+
+Density estimation is a popular technique that has been utilised in anomaly detection. Anomaly detection is density estimation - given many input samples, anomalies are samples that reside in low probability density areas \citep{DAGMM}.
+
+One of the main problems with density estimation is the \textit{curse of dimensionality} - as the dimensionality of the input data becomes higher, any input sample could be a rare event with low probability to observe \citep{DAGMM}. This motivates the use of dimensionality reduction techniques, like Principal Component Analysis or Autoencoders, coupled with density estimation.
+
+Most approaches focus on dimensionality reduction followed by density estimation, however they suffer from decoupled model learning with inconsistent optimisation goals and incapability of preserving essential information in the low-dimensional space \citep{DAGMM}. The DAGMM (Deep Autoencoding Gaussian Mixture Model) model proposed by \cite{DAGMM} provides an approach which uses an autoencoder and Gaussian Mixture Model and jointly optimises the parameters of the autoencoder and mixture model simultaneously in an end-to-end fashion. 
+
+\cite{DAGMM}'s work provides a high-quality evaluation across several datasets, and benchmark comparisons against other density estimation and semi-supervised anomaly detection techniques, specifically introducing \textit{contaminated} datasets and assessing model performance on these. It shows an understanding of the field of density estimation anomaly detection techniques and it points to several other works which could be considered and further expored in future.
+
+\subsection{Anomaly scoring and model evaluation}
+
+\subsubsection{Anomaly scoring}
+\label{subsubsection:anomaly-scoring}
+
+In their survey, \cite{deepLearningSurvey} state that, generally, anomaly detection models will output an \textit{anomaly score} or \textit{binary labels}. An anomaly score describes the level of outlierness for each data point, and is usually combined with a domain-specific \textit{decision threshold} or \textit{decision score} in order to classify a data point as normal or anomalous, hence creating a binary label.
+
+\cite{deepMultivariateNetwork} also refer to the concept of anomaly scoring, but they place this under the problem of ``anomaly diagnosis'', which they define as identifying the abnormal time series and interpreting the anomaly severity. One of their research aims is producing a model which can address the issues of anomaly detection, root cause identification and and anomaly severity jointly, so as to provide useful output for human operators to diagnose the issue.
+
+\cite{comparativeUnsupervisedEvaluation}'s survey  describes the problem of \textit{``micro-clustering''}, in which a group of observations could be considered a new normal density, or a group of anomalous points, and states that this problem motivates the results of the anomaly detection algorithm being a score, which can place these points on a relative scale to other points for thier outlierness.
+
+The ADSaS system described by \cite{ADSaS} explicitly mentions using a ``threshold'' parameter $\epsilon$ to score anomalies.
+
+\subsubsection{Evaluation challenges}
+
+When describing evaluating unsupervised anomaly detection algorithms, \cite{comparativeUnsupervisedEvaluation} find that, although unsupervised anomaly detection does not utilise any label information, they are needed for evaluation and comparison. They also acknowledge when describing \textit{supervised} anomaly detection that it is practically not very relevant due to the assumptions that anomalies are known and labelled correctly \citep{comparativeUnsupervisedEvaluation}, which is often a flawed assumption in real applications. \cite{outlierAnalysisBook} also points to this being a problem, stating that ``the ground-truth labeling of data points as outliers or non-outliers is often not available''.
+
+\cite{MicrosoftTimeSeries} list their biggest challenge in building Microsoft's time-series anomaly detection system as being the lack of labelled data. The requirements of their system is that it process millions of metrics every minute, and as such it is impractical to create anomaly labels on historical data that are comprehensive. However, they have created an internal portal in which users can mark a point as anomaly or not. They can also retroactively label alerts that were triggered from the sytem as true positives or false positives.
+
+The work presented by \cite{MicrosoftTimeSeries} clearly acknowledges the problems of scale faced at Microsoft, but its view is heavily biased towards having to respond to alerts in real-time. This research is instead not concerned with real-time stream processing, but can signal trend anomalies at occuring, for example, at the hourly frequency at first, so a lot of the trade-offs taken in this paper are not necessarily a requirement for this research. It does, however, offer a very tangible and familiar view of the problems of data at scale and implementing anomaly detection on it.
+
+A solution to the problem of lack of labels is to use ``external validity measures'' \citep{outlierAnalysisBook} by adapting datasets from imbalanced classification problems, where the rare classes can be used as surrogates for anomalies. \cite{outlierAnalysisBook} cautions about using such an evaluation to find the best algorithm, in that it will inherently favour the most unstable algorithm, which is most prone to overfitting the training data, given the sparseness of labels. One way to combat this, is the approach of training data contamination proposed in \cite{DAGMM} and discussed below in Section \ref{subsubsection:performance-evaluation}.
+
+\paragraph{Open Benchmark Datasets}
+\label{paragraph:open-benchmark-datasets}
+For purely evaluating the performance of various algorithms with known anomalies, using benchmark open datasets may yield better results than attempting to create anomaly labels for real-world data. This is done in most of the works surveyed, usually in conjunction with real-world data in order to allow other academics to reproduce the work, yet also show real-world proprietary application.
+
+Here is a collection of datasets that are used in the various literature surveyed:
+
+\begin{center}
+\begin{longtable}{ |>{\raggedright}p{4cm}|p{6cm}|p{4cm}| }
+	\hline
+	\textbf{Dataset} & \textbf{Used in} & \textbf{Reference} \\
+	\hline
+	Numenta Anomaly Benchmark (NAB) & \cite{ADSaS} & \cite{NAB} \\
+	\hline
+	NASA Shuttle Valve Data & \cite{deepLearningSurvey, lstmEncoderDecorder, lstmTimeSeriesAnomalyDetection} & \cite{NASAShuttleValve} \\
+	\hline
+	NYC Taxi and Limousine Commission (TLC) Trip Record Data & \cite{deepLearningSurvey} & \cite{NYCTaxiCount} \\
+	\hline
+	Thyroid & \cite{DAGMM} & \cite{ODDS} \\
+	\hline
+	Arrhythmia & \cite{DAGMM} & \cite{ODDS} \\
+	\hline
+	UCI KDDCUP99 & \cite{DAGMM, comparativeUnsupervisedEvaluation} & \cite{ODDS, UCIRepository} \\
+	\hline
+	UCI Breast Cancer Wisconsin & \cite{comparativeUnsupervisedEvaluation} & \cite{UCIRepository} \\
+	\hline
+	UCI Pen-Based Recognition of Handwritten Text & \cite{comparativeUnsupervisedEvaluation} & \cite{UCIRepository} \\
+	\hline
+	Landsat Satellite / Statlog Shuttle & \cite{comparativeUnsupervisedEvaluation} & \cite{ODDS} \\
+	\hline
+	Amsterdam Library of Object Images (ALOI) & \cite{comparativeUnsupervisedEvaluation} & \cite{ALOI} \\
+	\hline
+	Vessels & \cite{deepLearningSurvey} & \cite{NOAA} \\
+	\hline
+	Secure Water Treatment (SWaT) & \cite{deepLearningSurvey} & \cite{SingaporeSWAT}\\
+	\hline
+	Water Distribution (WADI) & \cite{deepLearningSurvey} & \cite{SingaporeWADI}\\
+	\hline
+	Credit Card Fraud Detection & \cite{deepLearningSurvey} & \cite{CreditCardFraudData} \\
+	\hline
+	AIOPS KPI & \cite{MicrosoftTimeSeries} & \cite{AIOPSKPI} \\
+	\hline
+	Yahoo Research Benchmark Dataset for Time Series Anomaly Detection & \cite{MicrosoftTimeSeries} & \cite{YahooLabs} \\
+	\hline
+\end{longtable}
+\end{center}
+
+\subsubsection{Performance evaluation}
+\label{subsubsection:performance-evaluation}
+
+Most works recognise anomaly detection as a classification problem in the context of evaluation, and therefore use Precision-Recall and Receiver Operating Characteristic \citep{outlierAnalysisBook} to compare the performance of algorithms. For example, the ADSaS system \citep{ADSaS} uses precision, recall and $F_1$ score.
+
+\cite{lstmEncoderDecorder} had special considerations of evalutating perforance given their model was based on an LSTM recurrent autoencoder. The model took as input ``windows'' of time-series with a fixed length, and not all the points in the window were necessarily anomalous, yet the entire window would be considered anomalous. The article states ``we assume $\beta < 1$ since the fraction of actual anomalous points in a sequence labeled as anomalous may not be high, and hence lower recall is expected'' where $\beta$ refers to the equation $F_{\beta} = (1 + \beta^2) \times P \times \frac{R}{\beta^2 P + R}$.
+
+\cite{ADSaS} also reference anomaly windows, stating that ``an anomaly may occur only at a certain point, but it may occur over a long period'' - referring to point and contextual/collective anomalies. Their evaluation makes the assumption that it is not a false positive to detect an anomaly at the point immediately before or after the occurrence of an anomaly.
+
+\cite{lstmTimeSeriesAnomalyDetection} deliberately use $\beta<<1$ so as to give a higher importance to precision over recall. This is because all points in an anomaly window are labelled as anomalous, but in practice, there will be many points of ‘normal’ behaviour even amongst these. This raises an important consideration for the models' practical applicability.
+
+\cite{DAGMM} evalutate their model using precision, recall and $F_1$ score, but at different contaminations $c\%$ ranging from 0\% to 5\%. For each pass, $c\%$ of the training data is taken from the anomalous labelled data, but labeled as normal. This tests a model for its predictivie ability in practical application where some anomalies may exist in the data but not be labelled as such. In particular, \cite{DAGMM} reveals that the One-Class SVM is particularly sensitive to contaminated data, with a 5\% contamination killing the classifier's $F_1$ score performance by around 0.5 (50\% worse).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Progress}
+
+So far, there has been some significant progress made towards the research.
+
+Initially, an exploration of the redirects data was conducted, which consisted of setting up access to query the data using the company's Apache Spark cluster(s), and manipulating this data inside of Python notebooks.
+
+The first iteration of the problem was then attempted with a simple linear regression model. One of the fields in the dataset is ``estimated revenue'' so the first problem tackled was to predict the estimated revenue given other fields in the dataset for every record - a simple supervised learning problem. However, it was decided to pivot away from this problem for several reasons:
+
+\begin{itemize}
+	\item The number of potential anomalies that could be detected would be very limited, given only anomalies in the ``estimated revenue'' field would be detected.
+	\item The large amount of data to be processed and manipulated in order to have the model perform well.
+	\item The high overlap between this problem and a similar price prediction problem that is being worked on by another team within the company.
+\end{itemize}
+
+Instead, the approach has been taken to ``summarise'' or integrate the events for a given time step (for example every 10 minutes) and produce a set of aggregated metrics for the timestep. This set of metrics is the multivariate time-series referred to in the title.
+
+This approach allows more anomalies to be identified, since more of the dataset fields can be considered - however, it is perhaps more difficult to create a labelled dataset of anomalies this way. There is currently no ``label'' in the data that can easily label examples of anomalies, hence we must use the semi-supervised technique of only training on nominal values and allowing the model to detect a value outwith the normal as anomalous, without ever seeing an anomaly ``class''.
+
+However, its difficult to evaluate the semi-supervised approach's classification performance without labels, so several options have emerged for generating the labelled data and/or dealing with the problem of the lack of labels:
+\begin{enumerate}
+	\item \textbf{Creation of labels by manual inspection} \\ This involves visualising the data and manually labelling timesteps as anomalous or not. This technique is error prone and it implicitly assumes that all anomalies are easily detectable by a human, which may not be the case. This technique may also be impractical for the large datasets in question.
+	\item \textbf{Creation of labels from other sources} \\ There may be other time-series data available which can give information about a subset of the possible anomalies. For example, historical recorded incidents would have start and end timestamps, which could be used to mark timesteps as anomalous or not. The drawback of this method is that there may not be a full coverage if only the most significant anomalies that had major impact are considered. This method would also be unable to pinpoint which time-series is anomalous, it would consider the entire timestep anomalous.\\\\
+		This is the next approach that will be explored, as there is a dataset of production incidents which may be able to inform the creation of a labelled anomaly dataset.
+	\item \textbf{Synthetic anomaly generation} \\ Synthetic anomalies can be introduced to the dataset and the performance of the model evaluated on these. However, the synthetic anomalies may not be representative of the actual anomalies in the dataset. Furthermore, there may already exist anomalies in the dataset which are not labelled as such, which the model would learn as normal values, reducing the predictive ability of the model.
+	\item \textbf{Model evaluation on sample datasets} \\ Rather than trying to make labels for the intended application's dataset, labelled open datasets could be used and the model benchmarked on these, to have an indication of its predictive performance on the intended dataset. Ideally, the sample dataset would resemble the true redirects dataset.
+		\\\\
+		This technique would be best used when comparing different types of models to use, rather than exact weights or instances of the model. For example, indicative performance on a sample dataset could be used to decide if the anomaly detection system will be implemented as a one-class SVM or as an LSTM neural network - two of the current proposed solutions.
+\end{enumerate}
+
+Based on the current progress, I do not foresee issues in the completion of the project. The main risk would be in not being able to accurately or completely label the dataset with anomalies, and being unable to produce a coherent evaluation of the various models considered.
+
+This risk is mitigated by always having the option to run models on standard  open datasets which are labelled with anomalies - for a comprehensive evaluation of these, see Section \ref{paragraph:open-benchmark-datasets}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Work Plan}
+
+\subsection{Milestones}
+
+Objectives should be SMART - \textit{Specific, Measurable, Achievable, Relevant and Time-bound}. In the case of this research, the goals come from the statement of research, but can be further elaborated into SMART milestones.
+
+\begin{center}
+\begin{tabular}{ |p{1.5cm}|p{2.5cm}|p{6cm}| }
+	\hline
+	\textbf{No.} & \textbf{Due Date} & \textbf{Milestone} \\
+	\hline
+	\rownumber & 1st Feb 2020 & Evaluation of anomaly detection models on open datasets\\
+	\hline
+	\rownumber & 1st April 2020 & Application and evaluation of anomaly detection models on Skyscanner redirects data\\
+	\hline
+	\rownumber & 16th April 2020 & Masters dissertation hand-in\\
+	\hline
+	\rownumber & 1st May 2020 ? & (stretch) Feasibility analysis of deployment to production in Skyscanner \\
+	\hline
+\end{tabular}
+\end{center}
+
+\subsection{Tasks}
+
+\begin{center}
+\begin{longtable}{ |p{2cm}|p{2cm}|p{5cm}|p{5cm}| }
+	\hline
+	\textbf{Milestone} & \textbf{Due Date} & \textbf{Task} & \textbf{Description} \\
+	\hline
+	1 & 4 Jan & Evaluate and select open datasets for evaluation & Ideally (3-5) from those identified in Section \ref{paragraph:open-benchmark-datasets} \\
+	\hline
+	1 & 12 Jan & Build an evaluation framework for various models on each dataset. & Complete with Precision, Recall and $F_1$ results, and running with varying degrees of \textit{contamination} (see Section \ref{subsubsection:performance-evaluation}). \\
+	\hline
+	1 & 25 Jan & Select and implement the models for comparison & Some current suggestions:
+	\begin{itemize}
+		\item ADSaS
+		\item LSTM-prediction
+		\item LSTM-STL (combination of LSTM and ADSaS - potential area of novelty/contribution)
+		\item MSCRED
+		\item DAGMM
+		\item OC-SVM/OC-NN
+	\end{itemize}\\
+	\hline
+	1 & 1 Feb & Evaluate the implemented models, record results and draw conclusions & \\
+	\hline
+	\hline
+	2 & 15 Feb & Construct integrated data representation from Skyscanner redirects & \\
+	\hline
+	2 & 22 Feb & Attempt to label the redirects data, and if unable to, document why & \\
+	\hline
+	2 & 27 Feb & Evaluate the model on Skyscanner redirects data & \\
+	\hline
+	\hline
+	3 & 16 Apr & Complete dissertation write-up & \\
+	\hline
+	\hline
+	4 & 25 Apr & Propose a solution for deploying the anomaly detection system to production & \\
+	\hline
+	4 & 1 May & Evaluate how well the model generalises to new datasets it has not encountered & \\
+	\hline
+\end{longtable}
+\end{center}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% it is fine to change the bibliography style if you want
+\bibliographystyle{plainnat}
+\bibliography{interimreport}
+\end{document}
