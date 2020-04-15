@@ -24,6 +24,8 @@ To run the code, you should use a Conda environment. You can either install the 
 conda env create -f environment.yml
 ```
 
+**NOTE:** The Yahoo A1 data itself is NOT included! In order to run the evaluation on the Yahoo A1 dataset, download and extract the Yahoo data (available at this link: https://webscope.sandbox.yahoo.com/catalog.php?datatype=s&did=70) into the path `code/data/yahoo`. You must accept a data sharing agreement with Yahoo to gain access to the data.
+
 ## Run the Evaluation code
 
 This will take some time to run!
